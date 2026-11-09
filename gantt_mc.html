@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento Mesa de Control</title>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --panel-bg: rgba(30, 41, 59, 0.75);
+      --border-glow: rgba(0, 229, 255, 0.3);
+      --accent: #00e5ff;
+      --accent-glow: rgba(0, 229, 255, 0.15);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --glass-blur: blur(12px);
+      --font-main: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width: 100%; overflow-x: hidden; }
+    body {
+      font-family: var(--font-main);
+      background: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 20px;
+      background-image: radial-gradient(circle at 20% 0%, rgba(0,229,255,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 100%, rgba(99,102,241,0.08) 0%, transparent 50%);
+    }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; background: var(--panel-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-glow); border-radius: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 30px rgba(0,229,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05);
+      animation: slideDown 0.5s ease;
+    }
+    @keyframes slideDown { from { opacity:0; transform: translateY(-12px); } to { opacity:1; transform: translateY(0); } }
+    .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+    .header-left img { height: 36px; filter: drop-shadow(0 0 6px rgba(0,229,255,0.3)); flex-shrink: 0; }
+    .header-title { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.5px; background: linear-gradient(135deg, #fff, #00e5ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-right { display: flex; gap: 10px; flex-shrink: 0; }
+    .btn { padding: 9px 18px; border-radius: 10px; border: 1px solid transparent; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-main); white-space: nowrap; }
+    .btn-primary { background: linear-gradient(135deg, #00e5ff, #0077ff); color: #0b0f19; box-shadow: 0 0 20px rgba(0,229,255,0.25); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(0,229,255,0.45); }
+    .btn-outline { background: transparent; border: 1px solid var(--border-glow); color: var(--accent); }
+    .btn-outline:hover { background: var(--accent-glow); }
+    .btn-sm { padding: 6px 12px; font-size: 0.76rem; }
+
+    .table-container {
+      background: var(--panel-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0,0,0,0.3);
+      animation: fadeIn 0.6s ease 0.1s both;
+      width: 100%;
+    }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    col.c-num   { width: 3%; }
+    col.c-desc  { width: 13%; }
+    col.c-area  { width: 7%; }
+    col.c-resp  { width: 8%; }
+    col.c-cont  { width: 10%; }
+    col.c-com   { width: 36%; }
+    col.c-fs    { width: 7%; }
+    col.c-fe    { width: 7%; }
+    col.c-est   { width: 9%; }
+
+    thead th {
+      text-align: left;
+      padding: 12px 8px;
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(15, 23, 42, 0.6);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    tbody td {
+      padding: 10px 8px;
+      font-size: 0.78rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.4;
+    }
+    tbody tr { transition: background 0.2s; cursor: pointer; }
+    tbody tr:hover { background: rgba(0,229,255,0.04); }
+
+    .cell-num  { color: var(--text-muted); font-weight: 600; text-align: center; }
+    .cell-desc { font-weight: 500; }
+    .cell-cont { color: var(--text-muted); font-size: 0.72rem; }
+    .cell-date { font-size: 0.74rem; white-space: nowrap; }
+    .cell-com  { font-size: 0.74rem; color: var(--text-muted); }
+
+    .com-entry {
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(255,255,255,0.05);
+    }
+    .com-entry:last-child { border-bottom: none; }
+    .com-date {
+      display: inline-block;
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(0,229,255,0.08);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+    .com-text { color: var(--text-main); }
+    .com-empty { color: var(--text-muted); font-style: italic; }
+
+    /* Enlace "+ N más" */
+    .com-more {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(0,229,255,0.08);
+      border: 1px solid rgba(0,229,255,0.25);
+      border-radius: 6px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .com-more:hover { background: rgba(0,229,255,0.18); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
+
+    .badge { padding: 4px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; display: inline-block; white-space: nowrap; }
+    .badge-pendiente { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .badge-enprogreso { background: rgba(0,229,255,0.12); color: #00e5ff; }
+    .badge-completado { background: rgba(16,185,129,0.15); color: #34d399; }
+
+    dialog { border: 1px solid var(--border-glow); border-radius: 16px; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(20px); color: var(--text-main); padding: 0; width: 90%; max-width: 640px; box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,229,255,0.1); margin: auto; }
+    dialog::backdrop { background: rgba(0,0,0,0.7); }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 1.1rem; color: var(--accent); }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; max-height: 65vh; overflow-y: auto; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: flex-end; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .form-group input, .form-group select, .form-group textarea { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; color: var(--text-main); font-family: var(--font-main); font-size: 0.9rem; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .history-box { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; font-size: 0.82rem; line-height: 1.6; color: var(--text-muted); max-height: 200px; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; }
+    .history-box .hb-date { color: var(--accent); font-weight: 700; }
+    .toast { position: fixed; bottom: 30px; right: 30px; background: rgba(16,185,129,0.9); color: #fff; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 0 30px rgba(16,185,129,0.4); transform: translateY(80px); opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { background: rgba(239,68,68,0.9); box-shadow: 0 0 30px rgba(239,68,68,0.4); }
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 0.9rem; }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,229,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 900px) {
+      .table-container { overflow-x: auto; }
+      table { min-width: 1000px; }
+      .header { flex-direction: column; gap: 14px; padding: 14px 16px; }
+      body { padding: 12px; }
+    }
+    @media (max-width: 768px) {
+      .form-row { grid-template-columns: 1fr; }
+      .header-title { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <img src="alsea.png" alt="Alsea" onerror="this.style.display='none'">
+    <img src="mc.png" alt="MC" onerror="this.style.display='none'">
+    <span class="header-title">Seguimiento Mesa de Control</span>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-outline btn-sm" onclick="loadData()">⟳ Actualizar</button>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Nueva Actividad</button>
+  </div>
+</div>
+
+<div class="table-container">
+  <table>
+    <colgroup>
+      <col class="c-num">
+      <col class="c-desc">
+      <col class="c-area">
+      <col class="c-resp">
+      <col class="c-cont">
+      <col class="c-com">
+      <col class="c-fs">
+      <col class="c-fe">
+      <col class="c-est">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Descripción</th>
+        <th>Área</th>
+        <th>Responsable</th>
+        <th>Contacto</th>
+        <th>Comentarios / Avances</th>
+        <th>F. Solicitud</th>
+        <th>F. Est. Término</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <tr><td colspan="9" class="loading"><span class="spinner"></span> Cargando datos...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<dialog id="taskModal">
+  <div class="modal-header">
+    <h3 id="modalTitle">Nueva Actividad</h3>
+    <button class="btn btn-sm" style="background:none;color:var(--text-muted);font-size:1.4rem;" onclick="document.getElementById('taskModal').close()">×</button>
+  </div>
+  <div class="modal-body" id="modalBody"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="document.getElementById('taskModal').close()">Cancelar</button>
+    <button class="btn btn-primary" id="saveBtn" onclick="saveTask()">Guardar</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby6hVbB-rixo-mkuRFaOp_soxEdjb7EBdOErd5NEcvS7lhmqIOT3OpKcuqPcoV1Ek4gqQ/exec';
+  const MAX_VISIBLES = 2; // 👈 solo las 2 últimas actualizaciones en la tabla
+
+  let allTasks = [];
+  let editingRowIndex = null;
+
+  async function callBackend(payload) {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow'
+    });
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); }
+    catch (e) { throw new Error('Respuesta no JSON: ' + text.substring(0, 200)); }
+    if (!json.ok) throw new Error(json.error || 'Error desconocido');
+    return json.data;
+  }
+
+  window.addEventListener('load', function() { loadData(); });
+
+  async function loadData() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '<tr><td colspan="9" class="loading"><span class="spinner"></span> Cargando datos...</td></tr>';
+    try {
+      allTasks = await callBackend({ action: 'getTasks' }) || [];
+      renderTable();
+    } catch (err) {
+      showToast('Error al cargar: ' + err.message, true);
+      tbody.innerHTML = '<tr><td colspan="9" class="loading" style="color:var(--danger)">Error de conexión</td></tr>';
+    }
+  }
+
+  function parseHistorial(historial) {
+    if (!historial) return [];
+    const lines = historial.split('\n');
+    const entries = [];
+    let current = null;
+    lines.forEach(function(line) {
+      const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+      if (m) {
+        if (current) entries.push(current);
+        current = { fecha: m[1], texto: m[2] };
+      } else if (current) {
+        current.texto += '\n' + line;
+      } else if (line.trim() !== '') {
+        current = { fecha: '', texto: line };
+      }
+    });
+    if (current) entries.push(current);
+    return entries;
+  }
+
+  // Muestra solo las últimas MAX_VISIBLES entradas + enlace "+ N más"
+  function renderHistorialCelda(historial) {
+    const entries = parseHistorial(historial);
+    if (!entries.length) return '<span class="com-empty">Sin comentarios</span>';
+
+    const total = entries.length;
+    const visibles = entries.slice(-MAX_VISIBLES); // las últimas 2
+    const ocultas = total - visibles.length;
+
+    let html = visibles.map(function(e) {
+      const fecha = e.fecha ? '<span class="com-date">' + escapeHtml(e.fecha) + '</span>' : '';
+      return '<div class="com-entry">' + fecha + '<span class="com-text">' + escapeHtml(e.texto) + '</span></div>';
+    }).join('');
+
+    if (ocultas > 0) {
+      html += '<span class="com-more" onclick="event.stopPropagation(); openEditModal(' +
+        (allTasks.find(function(t){ return t.historial === historial; }) || {}).rowIndex +
+        ')">+ ' + ocultas + ' más</span>';
+    }
+    return html;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    if (!allTasks.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="loading" style="color:var(--text-muted)">No hay actividades registradas. Presiona "Nueva Actividad".</td></tr>';
+      return;
+    }
+
+    let html = '';
+    allTasks.forEach(function(t, idx) {
+      const badgeClass = t.estado === 'Completado' ? 'badge-completado' :
+                         t.estado === 'En Progreso' ? 'badge-enprogreso' : 'badge-pendiente';
+      const historialFuente = t.historial || (t.comentarios ? '[Sin fecha] ' + t.comentarios : '');
+
+      html += '<tr onclick="openEditModal(' + t.rowIndex + ')">' +
+        '<td class="cell-num">' + (t.numeroFila || (idx+1)) + '</td>' +
+        '<td class="cell-desc">' + escapeHtml(t.descripcion) + '</td>' +
+        '<td>' + escapeHtml(t.area) + '</td>' +
+        '<td>' + escapeHtml(t.responsable) + '</td>' +
+        '<td class="cell-cont">' + escapeHtml(t.contacto) + '</td>' +
+        '<td class="cell-com">' + renderHistorialCeldaRow(t.rowIndex, historialFuente) + '</td>' +
+        '<td class="cell-date">' + (t.fechaSolicitud || '—') + '</td>' +
+        '<td class="cell-date">' + (t.fechaEstimada || '—') + '</td>' +
+        '<td><span class="badge ' + badgeClass + '">' + t.estado + '</span></td>' +
+      '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  // Versión que recibe rowIndex directo (más limpia que buscar por historial)
+  function renderHistorialCeldaRow(rowIndex, historial) {
+    const entries = parseHistorial(historial);
+    if (!entries.length) return '<span class="com-empty">Sin comentarios</span>';
+
+    const total = entries.length;
+    const visibles = entries.slice(-MAX_VISIBLES);
+    const ocultas = total - visibles.length;
+
+    let html = visibles.map(function(e) {
+      const fecha = e.fecha ? '<span class="com-date">' + escapeHtml(e.fecha) + '</span>' : '';
+      return '<div class="com-entry">' + fecha + '<span class="com-text">' + escapeHtml(e.texto) + '</span></div>';
+    }).join('');
+
+    if (ocultas > 0) {
+      html += '<span class="com-more" onclick="event.stopPropagation(); openEditModal(' + rowIndex + ')">+ ' + ocultas + ' más</span>';
+    }
+    return html;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function openAddModal() {
+    editingRowIndex = null;
+    document.getElementById('modalTitle').textContent = 'Nueva Actividad';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('modalBody').innerHTML =
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Descripción *</label><input id="f-desc" type="text" placeholder="Ej: Revisión de conciliación"></div>' +
+        '<div class="form-group"><label>Área *</label><input id="f-area" type="text" placeholder="Ej: Contabilidad"></div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Responsable *</label><input id="f-resp" type="text" placeholder="Nombre"></div>' +
+        '<div class="form-group"><label>Contacto (con quién se revisa)</label><input id="f-contacto" type="text" placeholder="Nombre / correo"></div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Fecha Solicitud</label><input id="f-fsolicitud" type="date" value="' + today + '"></div>' +
+        '<div class="form-group"><label>Fecha Est. Término</label><input id="f-festimada" type="date" value="' + today + '"></div>' +
+      '</div>' +
+      '<div class="form-group"><label>Estado</label>' +
+        '<select id="f-estado">' +
+          '<option value="Pendiente">Pendiente</option>' +
+          '<option value="En Progreso">En Progreso</option>' +
+          '<option value="Completado">Completado</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-group"><label>Comentario inicial (opcional)</label><textarea id="f-comentario" rows="3" placeholder="Observaciones iniciales..."></textarea></div>';
+    document.getElementById('taskModal').showModal();
+  }
+
+  function openEditModal(rowIndex) {
+    editingRowIndex = rowIndex;
+    const t = allTasks.find(function(x) { return x.rowIndex === rowIndex; });
+    if (!t) return;
+    document.getElementById('modalTitle').textContent = 'Actualizar: ' + t.descripcion;
+
+    let historyHtml;
+    if (t.historial) {
+      const entries = parseHistorial(t.historial);
+      const inner = entries.map(function(e) {
+        const fecha = e.fecha ? '<span class="hb-date">[' + escapeHtml(e.fecha) + ']</span> ' : '';
+        return '<div style="margin-bottom:6px;">' + fecha + escapeHtml(e.texto) + '</div>';
+      }).join('');
+      historyHtml = '<div class="form-group"><label>Historial de Comentarios (solo lectura)</label><div class="history-box">' + inner + '</div></div>';
+    } else {
+      historyHtml = '<div class="form-group"><label>Historial</label><div class="history-box" style="color:var(--text-muted);">Sin comentarios previos.</div></div>';
+    }
+
+    document.getElementById('modalBody').innerHTML =
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Descripción</label><input id="f-desc" type="text" value="' + escapeHtml(t.descripcion) + '"></div>' +
+        '<div class="form-group"><label>Área</label><input id="f-area" type="text" value="' + escapeHtml(t.area) + '"></div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Responsable</label><input id="f-resp" type="text" value="' + escapeHtml(t.responsable) + '"></div>' +
+        '<div class="form-group"><label>Contacto</label><input id="f-contacto" type="text" value="' + escapeHtml(t.contacto) + '"></div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Fecha Solicitud</label><input id="f-fsolicitud" type="date" value="' + t.fechaSolicitud + '"></div>' +
+        '<div class="form-group"><label>Fecha Est. Término</label><input id="f-festimada" type="date" value="' + t.fechaEstimada + '"></div>' +
+      '</div>' +
+      '<div class="form-group"><label>Estado</label>' +
+        '<select id="f-estado">' +
+          '<option value="Pendiente" ' + (t.estado==='Pendiente'?'selected':'') + '>Pendiente</option>' +
+          '<option value="En Progreso" ' + (t.estado==='En Progreso'?'selected':'') + '>En Progreso</option>' +
+          '<option value="Completado" ' + (t.estado==='Completado'?'selected':'') + '>Completado</option>' +
+        '</select>' +
+      '</div>' +
+      historyHtml +
+      '<div class="form-group"><label>Nuevo Comentario / Avance (se agregará al historial)</label><textarea id="f-comentario" rows="3" placeholder="Escribe el avance de hoy..."></textarea></div>';
+    document.getElementById('taskModal').showModal();
+  }
+
+  async function saveTask() {
+    const desc = document.getElementById('f-desc').value.trim();
+    const area = document.getElementById('f-area').value.trim();
+    const resp = document.getElementById('f-resp').value.trim();
+    if (!desc || !area || !resp) {
+      showToast('Descripción, Área y Responsable son obligatorios', true);
+      return;
+    }
+    const taskData = {
+      descripcion: desc, area: area, responsable: resp,
+      contacto: document.getElementById('f-contacto').value.trim(),
+      fechaSolicitud: document.getElementById('f-fsolicitud').value,
+      fechaEstimada: document.getElementById('f-festimada').value,
+      estado: document.getElementById('f-estado').value,
+      newComment: document.getElementById('f-comentario').value.trim()
+    };
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+      let tasks;
+      if (editingRowIndex === null) {
+        tasks = await callBackend({ action: 'addTask', task: taskData });
+        showToast('Actividad creada correctamente');
+      } else {
+        tasks = await callBackend({ action: 'updateTask', rowIndex: editingRowIndex, task: taskData });
+        showToast('Actividad actualizada');
+      }
+      allTasks = tasks || [];
+      renderTable();
+      document.getElementById('taskModal').close();
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Guardar';
+    }
+  }
+
+  function showToast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(function() { t.className = 'toast'; }, 3200);
+  }
+</script>
+</body>
+</html>
